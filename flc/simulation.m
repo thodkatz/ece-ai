@@ -35,10 +35,12 @@ figure; rlocus(closedTf)
 % Design fuzzy controller
 fis = mamfis('AndMethod', "min", 'ImplicationMethod', "min", 'AggregationMethod', "max", 'DefuzzificationMethod', "centroid");
 
-fis = addInput(fis, [-1 1], 'Name', "e", 'NumMFs', 7, 'MFType', "trimf");
-fis = addInput(fis, [-1 1], 'Name', "De", 'NumMFs', 7, 'MFType', "trimf");
+numInputMfs = 7;
+fis = addInput(fis, [-1 1], 'Name', "e", 'NumMFs', numInputMfs, 'MFType', "trimf");
+fis = addInput(fis, [-1 1], 'Name', "De", 'NumMFs', numInputMfs, 'MFType', "trimf");
 inputMfNames = ["NL", "NM", "NS", "ZR", "PS", "PM", "PL"];
 
+% I/O fuzzy variables and membership functions
 middleNode = -1;
 leftNode   = middleNode-0.5;
 rightNode  = middleNode+0.5;
@@ -89,13 +91,19 @@ for idxDiag = 1:numDiagonals
     for j = 1:numDiagonals - idxDiag+1
 
         if idxDiag == 1
-            rules(rowIdx,j) = sprintf("e==%s & De==%s => Du=%s", inputMfNames(rowIdx), inputMfNames(j),"ZR");
+            rules(rowIdx,j) = sprintf("De==%s & e==%s => Du=%s", inputMfNames(numInputMfs - rowIdx + 1), inputMfNames(j),"ZR");
+            %rules(rowIdx,j) = sprintf("%s,%s,%s", inputMfNames(numInputMfs - rowIdx + 1), inputMfNames(j),"ZR");
         elseif idxDiag <= zeroIdxOutputMf-1
-            rules(rowIdx, j) = sprintf("e==%s & De==%s => Du=%s", inputMfNames(rowIdx), inputMfNames(j), outputMfNames(zeroIdxOutputMf - idxDiag + 1));
-            rules(j, rowIdx) = sprintf("e==%s & De==%s => Du=%s", inputMfNames(j), inputMfNames(rowIdx), outputMfNames(zeroIdxOutputMf + idxDiag - 1));
+            rules(rowIdx, j) = sprintf("De==%s & e==%s => Du=%s", inputMfNames(numInputMfs - rowIdx + 1), inputMfNames(j), outputMfNames(zeroIdxOutputMf - idxDiag + 1));
+            %rules(rowIdx, j) = sprintf("%s,%s,%s", inputMfNames(numInputMfs - rowIdx + 1), inputMfNames(j), outputMfNames(zeroIdxOutputMf - idxDiag + 1));
+            rules(j, rowIdx) = sprintf("De==%s & e==%s => Du=%s", inputMfNames(numInputMfs - j + 1), inputMfNames(rowIdx), outputMfNames(zeroIdxOutputMf + idxDiag - 1));
+            %rules(j, rowIdx) = sprintf("%s,%s,%s", inputMfNames(numInputMfs - j + 1), inputMfNames(rowIdx), outputMfNames(zeroIdxOutputMf + idxDiag - 1));
         else
-            rules(rowIdx, j) = sprintf("e==%s & De==%s => Du=%s", inputMfNames(rowIdx), inputMfNames(j), "NV");
-            rules(j, rowIdx) = sprintf("e==%s & De==%s => Du=%s", inputMfNames(j), inputMfNames(rowIdx), "PV");
+            rules(rowIdx, j) = sprintf("De==%s & e==%s => Du=%s", inputMfNames(numInputMfs - rowIdx + 1), inputMfNames(j), "NV");
+            %rules(rowIdx, j) = sprintf("%s,%s,%s", inputMfNames(numInputMfs - rowIdx + 1), inputMfNames(j), "NV");
+
+            rules(j, rowIdx) = sprintf("De==%s & e==%s => Du=%s", inputMfNames(numInputMfs - j + 1), inputMfNames(rowIdx), "PV");
+            %rules(j, rowIdx) = sprintf("%s,%s,%s", inputMfNames(numInputMfs - j + 1), inputMfNames(rowIdx), "PV");
         end
 
         rowIdx = rowIdx + 1;
@@ -106,8 +114,8 @@ end
 fis = addRule(fis,rules(:));
 writeFIS(fis,"flc")
 
-% GUI representation of fis object
+% Uncomment these lines for GUI representation of fis object
 % plotfis(fis)
 % fuzzy(fis)
 
-% Simulink closed loop unity negative feedback system
+%% Simulink closed loop unity negative feedback system
