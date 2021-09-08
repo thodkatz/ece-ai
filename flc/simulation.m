@@ -16,8 +16,8 @@ GP = zpk([], [-0.1 -10], 25)
 % Uncomment the following line to launch the toolbox with the configuration:
 % controlSystemDesigner("dcControllerTuning.mat")
 
-c = 0.2;
-k = 2;
+c = 0.35;
+k = 1;
 
 % controller transfer function
 %GC = tf([k * 1, k * c], [1, 0])
@@ -42,8 +42,9 @@ inputMfNames = ["NL", "NM", "NS", "ZR", "PS", "PM", "PL"];
 
 % I/O fuzzy variables and membership functions
 middleNode = -1;
-leftNode   = middleNode-0.5;
-rightNode  = middleNode+0.5;
+leftNode = middleNode - 0.5;
+rightNode = middleNode + 0.5;
+
 for index = 1:numel(inputMfNames)
     fis.Input(1).MembershipFunctions(index).Name = inputMfNames(index);
     fis.Input(1).MembershipFunctions(index).Parameters = [leftNode middleNode rightNode];
@@ -51,8 +52,8 @@ for index = 1:numel(inputMfNames)
     fis.Input(2).MembershipFunctions(index).Parameters = [leftNode middleNode rightNode];
 
     middleNode = middleNode + 1/3;
-    leftNode   = middleNode-0.5;
-    rightNode  = middleNode+0.5;
+    leftNode = middleNode - 0.5;
+    rightNode = middleNode + 0.5;
 end
 
 fis = addOutput(fis, [-1 1], 'Name', "Du", 'NumMFs', 9, 'MFType', "trimf");
@@ -60,15 +61,16 @@ outputMfNames = ["NV" inputMfNames "PV"];
 zeroIdxOutputMf = 5;
 
 middleNode = -1;
-leftNode   = middleNode-3/8;
-rightNode  = middleNode+3/8;
+leftNode = middleNode - 3/8;
+rightNode = middleNode + 3/8;
+
 for index = 1:numel(outputMfNames)
     fis.Output(1).MembershipFunctions(index).Name = outputMfNames(index);
     fis.Output(1).MembershipFunctions(index).Parameters = [leftNode middleNode rightNode];
 
     middleNode = middleNode + 1/4;
-    leftNode   = middleNode-3/8;
-    rightNode  = middleNode+3/8;
+    leftNode = middleNode - 3/8;
+    rightNode = middleNode + 3/8;
 end
 
 figure
@@ -88,12 +90,12 @@ numDiagonals = 7;
 for idxDiag = 1:numDiagonals
     rowIdx = idxDiag;
 
-    for j = 1:numDiagonals - idxDiag+1
+    for j = 1:numDiagonals - idxDiag + 1
 
         if idxDiag == 1
-            rules(rowIdx,j) = sprintf("De==%s & e==%s => Du=%s", inputMfNames(numInputMfs - rowIdx + 1), inputMfNames(j),"ZR");
+            rules(rowIdx, j) = sprintf("De==%s & e==%s => Du=%s", inputMfNames(numInputMfs - rowIdx + 1), inputMfNames(j), "ZR");
             %rules(rowIdx,j) = sprintf("%s,%s,%s", inputMfNames(numInputMfs - rowIdx + 1), inputMfNames(j),"ZR");
-        elseif idxDiag <= zeroIdxOutputMf-1
+        elseif idxDiag <= zeroIdxOutputMf - 1
             rules(rowIdx, j) = sprintf("De==%s & e==%s => Du=%s", inputMfNames(numInputMfs - rowIdx + 1), inputMfNames(j), outputMfNames(zeroIdxOutputMf - idxDiag + 1));
             %rules(rowIdx, j) = sprintf("%s,%s,%s", inputMfNames(numInputMfs - rowIdx + 1), inputMfNames(j), outputMfNames(zeroIdxOutputMf - idxDiag + 1));
             rules(j, rowIdx) = sprintf("De==%s & e==%s => Du=%s", inputMfNames(numInputMfs - j + 1), inputMfNames(rowIdx), outputMfNames(zeroIdxOutputMf + idxDiag - 1));
@@ -111,11 +113,12 @@ for idxDiag = 1:numDiagonals
 
 end
 
-fis = addRule(fis,rules(:));
-writeFIS(fis,"flc")
+fis = addRule(fis, rules(:));
+writeFIS(fis, "flc")
 
-% Uncomment these lines for GUI representation of fis object
+% Uncomment these lines for GUI representation of fis object, fuzzy inference system
 % plotfis(fis)
 % fuzzy(fis)
 
 %% Simulink closed loop unity negative feedback system
+% Don't forget to configure your path: $(LOCAL)/flc for the fls.fis file to open in the simuluation.
