@@ -4,6 +4,11 @@ clear; clc
 %GP = tf(25, [1, 10.1, 1])
 GP = zpk([], [-0.1 -10], 25)
 
+% setup path
+rootDir = fileparts(matlab.desktop.editor.getActiveFilename);
+addpath([rootDir '\simulink'])
+addpath(rootDir)
+
 %% LINEAR CONTROLLER
 
 % controlSystemDesigner(GP)
@@ -121,4 +126,3 @@ writeFIS(fis, "flc")
 % fuzzy(fis)
 
 %% Simulink closed loop unity negative feedback system
-% Don't forget to configure your path: $(LOCAL)/flc for the fls.fis file to open in the simuluation.
