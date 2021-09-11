@@ -5,7 +5,7 @@ clear; clc
 GP = zpk([], [-0.1 -10], 25)
 
 % setup path
-rootDir = fileparts(matlab.desktop.editor.getActiveFilename);
+rootDir = fileparts(matlab.desktop.editor.getActiveFilename); % FIX: this requires to run within matlab desktop editor
 addpath([rootDir '\simulink'])
 addpath(rootDir)
 
@@ -120,9 +120,12 @@ end
 
 fis = addRule(fis, rules(:));
 writeFIS(fis, "flc")
+gensurf(fis)
 
 % Uncomment these lines for GUI representation of fis object, fuzzy inference system
 % plotfis(fis)
+% ruleview(fis)
 % fuzzy(fis)
 
 %% Simulink closed loop unity negative feedback system
+open_system("simulation.slx")
