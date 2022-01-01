@@ -94,9 +94,7 @@ numDiagonals = 7;
 
 for idxDiag = 1:numDiagonals
     rowIdx = idxDiag;
-
     for j = 1:numDiagonals - idxDiag + 1
-
         if idxDiag == 1
             rules(rowIdx, j) = sprintf("De==%s & e==%s => Du=%s", inputMfNames(numInputMfs - rowIdx + 1), inputMfNames(j), "ZR");
             %rules(rowIdx,j) = sprintf("%s,%s,%s", inputMfNames(numInputMfs - rowIdx + 1), inputMfNames(j),"ZR");
@@ -112,10 +110,8 @@ for idxDiag = 1:numDiagonals
             rules(j, rowIdx) = sprintf("De==%s & e==%s => Du=%s", inputMfNames(numInputMfs - j + 1), inputMfNames(rowIdx), "PV");
             %rules(j, rowIdx) = sprintf("%s,%s,%s", inputMfNames(numInputMfs - j + 1), inputMfNames(rowIdx), "PV");
         end
-
         rowIdx = rowIdx + 1;
     end
-
 end
 
 fis = addRule(fis, rules(:));
