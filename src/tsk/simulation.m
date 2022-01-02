@@ -1,3 +1,4 @@
+%% Init
 clear; close;
 
 % prepare data
@@ -9,25 +10,23 @@ getOutput = @(data) data(:, end);
 
 % create fuzzy models
 opt = genfisOptions('GridPartition');
-opt.InputMembershipFunctionType = 'gbellmf';
+opt.InputMembershipFunctionType = 'gaussmf';
 
-options.OutputMembershipFunctionType = 'constant';
+opt.OutputMembershipFunctionType = 'constant';
 opt.NumMembershipFunctions = 2;
 tsk(1) = genfis(getInput(trainData), getOutput(trainData), opt);
 opt.NumMembershipFunctions = 3;
 tsk(2) = genfis(getInput(trainData), getOutput(trainData), opt);
 
-options.OutputMembershipFunctionType = 'linear';
+opt.OutputMembershipFunctionType = 'linear';
 opt.NumMembershipFunctions = 2;
 tsk(3) = genfis(getInput(trainData), getOutput(trainData), opt);
 opt.NumMembershipFunctions = 3;
 tsk(4) = genfis(getInput(trainData), getOutput(trainData), opt);
 
-% training per model
+%% Training per model
 for i = 1:numel(tsk)
     opt = anfisOptions('InitialFIS', tsk(i), 'EpochNumber', 10, 'ValidationData', checkData);
-    % by default I think the weights are initialized randomly. That's why you get different results per run
-    % the goal is to avoid bad local minimums
     [trainFis, trainError, ~, checkFis, checkError] = anfis(trainData, opt);
 
     % membership functions of optimized fuzzy inference system (fis)
@@ -36,29 +35,33 @@ for i = 1:numel(tsk)
     %     plotmf(checkFis,'input',j)
     % end
 
+    % showrule
+    % showrule(checkfis)
+
     % learning curves
-    figure
-    plot([trainError checkError])
+    % figure
+    % plot([trainError checkError])
 
-    % evaluation, metrics
-    yHat = evalfis(checkFis, getInput(testData));
-    y = getOutput(testData);
-    r2 = 1 - sum((y - yHat).^2) / sum((y - mean(y)).^2);
-    rmse = sqrt(mse(yHat, getOutput(testData)));
-    nmse = 1 - r2;
-    ndei = sqrt(nmse);
-    error = y - yHat;
+    % % evaluation, metrics
+    % yHat = evalfis(checkFis, getInput(testData));
+    % y = getOutput(testData);
+    % r2 = 1 - sum((y - yHat).^2) / sum((y - mean(y)).^2);
+    % rmse = sqrt(mse(yHat, getOutput(testData)));
+    % nmse = 1 - r2;
+    % ndei = sqrt(nmse);
+    % error = y - yHat;
 
-    figure
-    plot(error)
+    % figure
+    % plot(error)
 end
 
-% evaluation
+%% Training using grid search and substractive clustering
 
 function [trainData, checkData, testData] = prepareData(name_dataset)
     data = load(name_dataset);
 
     % shuffle
+    rng(10);
     shuffle = @(v) v(randperm(length(v)), :);
     data = shuffle(data);
 
