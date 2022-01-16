@@ -4,13 +4,15 @@
 # %%
 # set the seed to get reproducible results
 import os
-seed=2
-#os.environ['PYTHONHASHSEED'] = str(seed)
-#os.environ['TF_CUDNN_DETERMINISTIC']= str(seed)
+
+seed = 2
+# os.environ['PYTHONHASHSEED'] = str(seed)
+# os.environ['TF_CUDNN_DETERMINISTIC']= str(seed)
 
 import numpy as np
 import tensorflow as tf
 import random as python_random
+
 # source: https://keras.io/getting_started/faq/#how-can-i-obtain-reproducible-results-using-keras-during-development
 # source: https://github.com/keras-team/keras/issues/2743
 np.random.seed(seed)
@@ -39,8 +41,8 @@ num_features = train_x.shape[1]
 num_classes = 10
 
 # memory efficient
-train_x = train_x.astype('float32')
-test_x = test_x.astype('float32')
+train_x = train_x.astype("float32")
+test_x = test_x.astype("float32")
 
 # %%
 # min max normalization
@@ -72,10 +74,12 @@ plt.hist(train_x[0, :])
 hidden_layer_nodes1 = 128
 hidden_layer_nodes2 = 256
 model = Sequential(
-    [Flatten(input_shape=(num_features,)),
-     Dense(hidden_layer_nodes1, activation='relu'),
-     Dense(hidden_layer_nodes2, activation='relu'),
-     Dense(num_classes, activation='softmax')]
+    [
+        Flatten(input_shape=(num_features,)),
+        Dense(hidden_layer_nodes1, activation="relu"),
+        Dense(hidden_layer_nodes2, activation="relu"),
+        Dense(num_classes, activation="softmax"),
+    ]
 )
 
 # %%
@@ -85,25 +89,49 @@ train_y = keras.utils.to_categorical(train_y, num_classes)
 test_y = keras.utils.to_categorical(test_y, num_classes)
 
 #%%
-model.compile(optimizer='sgd', loss='categorical_crossentropy',
-              metrics=['accuracy'])
-model.fit(train_x, train_y, batch_size = num_samples_training, epochs=5, validation_data=(test_x, test_y),shuffle=False)
+model.compile(optimizer="sgd", loss="categorical_crossentropy", metrics=["accuracy"])
+model.fit(
+    train_x,
+    train_y,
+    batch_size=num_samples_training,
+    epochs=5,
+    validation_data=(test_x, test_y),
+    shuffle=False,
+)
 
 # %%
 # rmsprop
-model.compile(optimizer=RMSprop(learning_rate=0.001,rho=0.9),
-              loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-#print(model.summary())
-#print(model.weights)
+model.compile(
+    optimizer=RMSprop(learning_rate=0.001, rho=0.9),
+    loss="sparse_categorical_crossentropy",
+    metrics=["accuracy"],
+)
+# print(model.summary())
+# print(model.weights)
 for layer in model.layers:
     print(layer.get_weights())
-model.fit(train_x, train_y, batch_size = num_samples_training, epochs=5, validation_data=(test_x, test_y),shuffle=False)
+model.fit(
+    train_x,
+    train_y,
+    batch_size=num_samples_training,
+    epochs=5,
+    validation_data=(test_x, test_y),
+    shuffle=False,
+)
 
 #%%
 # sgd
-model.compile(optimizer='sgd',
-              loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-model.fit(train_x, train_y, epochs=10,batch_size = num_samples_training, validation_data=(test_x, test_y),shuffle=False)
+model.compile(
+    optimizer="sgd", loss="sparse_categorical_crossentropy", metrics=["accuracy"]
+)
+model.fit(
+    train_x,
+    train_y,
+    epochs=10,
+    batch_size=num_samples_training,
+    validation_data=(test_x, test_y),
+    shuffle=False,
+)
 
 # %%
 model.evaluate(test_x, test_y)
