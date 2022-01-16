@@ -123,7 +123,6 @@ end
 %% a sample of 100 elements of the model trying to fit to the data
 figure
 plot([y(1:100) yHat(1:100)]); xlabel('First 100 Test samples','Interpreter','Latex'); ylabel('Output','Interpreter','Latex'); legend('$y$','$\hat{y}$','Interpreter','Latex')
-exportgraphics(gcf,'predicted_real.pdf','ContentType','Vector')
 
 % prediction errors
 figure
