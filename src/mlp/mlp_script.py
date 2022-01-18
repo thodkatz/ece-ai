@@ -4,13 +4,15 @@
 # %%
 # set the seed to get reproducible results
 from enum import Enum
+from black import out
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from tensorflow import keras
 from tensorflow.keras.optimizers import RMSprop
-from keras.layers import Flatten, Dense
+from keras.layers import Flatten, Dense, Dropout
 from keras import Sequential
 from keras.initializers import RandomNormal
 from keras.datasets import mnist
+from keras.regularizers import l2, l1
 import matplotlib.pyplot as plt
 import random as python_random
 import tensorflow as tf
@@ -56,41 +58,48 @@ hidden_layer_nodes2 = 256
 # regularization can be used in the output layer too, although in most examples they don't include it
 # dropout should not be used for input and output layers
 def create_model(custom_weight_init=False, l2=False, l2_alpha=0.1, l1_dropout=False):
+    if l2 and l1_dropout:
+        print("Conflict in regularization l2-l1_dropout")
+        exit(-1)
+    hidden_layer_options = {}
+    output_layer_options = {}
     if custom_weight_init:
-        model = Sequential(
-            [
-                Dense(
-                    hidden_layer_nodes1,
-                    input_shape=(num_features,),
-                    kernel_initializer=RandomNormal(mean=10),
-                ),
-                Dense(
-                    hidden_layer_nodes2,
-                    kernel_initializer=RandomNormal(mean=10),
-                    activation="relu",
-                ),
-                Dense(
-                    num_classes,
-                    kernel_initializer=RandomNormal(mean=10),
-                    activation="softmax",
-                ),
-            ]
+        hidden_layer_options["kernel_initializer"] = RandomNormal(mean=10)
+        output_layer_options["kernel_initializer"] = RandomNormal(mean=10)
+    if l2:
+        hidden_layer_options["kernel_regularizer"] = l2(l2_alpha)
+    if l1_dropout:
+        hidden_layer_options["kernel_regularizer"] = l1(0.001)
+
+    model = Sequential()
+    # 1st hidden layer
+    model.add(
+        Dense(
+            hidden_layer_nodes1,
+            input_shape=(num_features,),
+            activation="relu",
+            **hidden_layer_options
         )
-    else:
-        model = Sequential(
-            [
-                # flatten is redundant since we reshaped data previously
-                Flatten(input_shape=(num_features,)),
-                Dense(hidden_layer_nodes1, activation="relu"),
-                Dense(hidden_layer_nodes2, activation="relu"),
-                Dense(num_classes, activation="softmax"),
-            ]
-        )
+    )
+
+    if l1_dropout:
+        # source: https://machinelearningmastery.com/how-to-reduce-overfitting-with-dropout-regularization-in-keras/
+        model.add(Dropout(0.3))
+
+    # 2nd hidden layer
+    model.add(Dense(hidden_layer_nodes2, activation="relu", **hidden_layer_options))
+
+    if l1_dropout:
+        model.add(Dropout(0.3))
+
+    # output
+    model.add(Dense(num_classes, activation="softmax", **output_layer_options))
+
     return model
 
 
 model = create_model(custom_weight_init=True)
-print(model.summary())
+# print(model.summary())
 
 
 class Optimizer(Enum):
@@ -114,7 +123,16 @@ def fitWrapper(batch_size, epochs, optimizer, rho):
     else:
         print("Not supported optimizer")
         exit(-1)
-    model.fit(train_x, train_y, batch_size=batch_size, epochs=epochs, shuffle=False)
+
+    model.fit(
+        train_x,
+        train_y,
+        batch_size=batch_size,
+        epochs=epochs,
+        validation_data=(test_x, test_y),
+        validation_split=0.2,
+        shuffle=False,
+    )
 
 
 batches = [1, 256, num_samples_training]
