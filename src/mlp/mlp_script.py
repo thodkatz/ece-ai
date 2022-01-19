@@ -2,6 +2,7 @@
 # To add a new markdown cell, type '# %% [markdown]'
 
 # %%
+
 # set the seed to get reproducible results
 from enum import Enum
 from black import out
@@ -18,19 +19,28 @@ import random as python_random
 import tensorflow as tf
 import numpy as np
 import os
+from pytictoc import TicToc  # time difference
 
-seed = 1
-os.environ["PYTHONHASHSEED"] = str(seed)
-os.environ["TF_CUDNN_DETERMINISTIC"] = str(seed)
-
-# source: https://keras.io/getting_started/faq/#how-can-i-obtain-reproducible-results-using-keras-during-development
-# source: https://github.com/keras-team/keras/issues/2743
-np.random.seed(seed)
-python_random.seed(seed)
-tf.random.set_seed(seed)
+# visualization
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
-# load and normalize dataset
+def set_seed(seed):
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    os.environ["TF_CUDNN_DETERMINISTIC"] = str(seed)
+
+    # source: https://keras.io/getting_started/faq/#how-can-i-obtain-reproducible-results-using-keras-during-development
+    # source: https://github.com/keras-team/keras/issues/2743
+    np.random.seed(seed)
+    python_random.seed(seed)
+    tf.random.set_seed(seed)
+
+
+#%%
+# Data preparation
+
+#  load and normalize dataset
 (train_x, train_y), (test_x, test_y) = mnist.load_data()
 
 # vectorize image row-wise
@@ -49,6 +59,11 @@ test_x = test_x.astype("float32")
 # min-max normalization
 train_x = train_x / 255
 test_x = test_x / 255
+
+#%%
+# Generate and train MLP
+
+set_seed(seed=1)
 
 # build the neural network
 hidden_layer_nodes1 = 128
@@ -124,7 +139,7 @@ def fitWrapper(batch_size, epochs, optimizer, rho):
         print("Not supported optimizer")
         exit(-1)
 
-    model.fit(
+    history = model.fit(
         train_x,
         train_y,
         batch_size=batch_size,
@@ -133,10 +148,66 @@ def fitWrapper(batch_size, epochs, optimizer, rho):
         validation_split=0.2,
         shuffle=False,
     )
+    return history
 
+
+set_seed(1)
 
 batches = [1, 256, num_samples_training]
-fitWrapper(num_samples_training, 10, Optimizer.RMSPROP, rho=0.9)
+batches = [num_samples_training]
+histories = []
+for batch in batches:
+    t = TicToc()
+    t.tic()
+    print("Batch size: " + str(batch))
+    history = fitWrapper(
+        batch_size=batch, epochs=5, optimizer=Optimizer.RMSPROP, rho=0.9
+    )
+    histories.append(history)
+    # model.evaluate(test_x, test_y)
+    t.toc()
 
-# test model with unseen data
-model.evaluate(test_x, test_y)
+# plot learning curves
+def plot_history(history):
+    plt.figure(constrained_layout=True)
+    plt.subplot(211)
+    # sns.lineplot(data=history.history["accuracy"])
+    plt.plot(history.history["accuracy"])
+    plt.plot(history.history["val_accuracy"], color="green")
+    plt.xlabel("epochs")
+    plt.ylabel("accuracy")
+    plt.legend(["train", "test"], loc="upper left")
+
+    plt.subplot(212)
+    plt.plot(history.history["loss"])
+    plt.plot(history.history["val_loss"], color="green")
+    plt.xlabel("epochs")
+    plt.ylabel("loss")
+    plt.legend(["train", "test"], loc="upper right")
+
+
+for history in histories:
+    plot_history(history)
+
+# add violin plot
+
+#%%
+# l2 regularization model
+set_seed(1)
+
+model = create_model(custom_weight_init=True)
+batch_size = 256
+fitWrapper(batch_size=batch_size, epochs=5, optimizer=Optimizer.RMSPROP, rho=0.9)
+# model.evaluate(test_x, test_y)
+
+#%%
+# l1-dropout regularization
+set_seed(1)
+
+model = create_model(custom_weight_init=True)
+batch_size = 256
+fitWrapper(batch_size=batch_size, epochs=5, optimizer=Optimizer.RMSPROP, rho=0.9)
+# model.evaluate(test_x, test_y)
+
+#%%
+#  Fine-tuning
