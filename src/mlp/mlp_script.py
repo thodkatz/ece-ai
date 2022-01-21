@@ -4,16 +4,16 @@
 # %%
 
 # set the seed to get reproducible results
-from enum import Enum
 from black import out
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from tensorflow import keras
 from tensorflow.keras.optimizers import RMSprop
 from keras.layers import Flatten, Dense, Dropout
 from keras import Sequential
-from keras.initializers import RandomNormal
+from keras.initializers import RandomNormal, HeNormal
 from keras.datasets import mnist
 from keras.regularizers import l2, l1
+import keras_tuner as kt
 import matplotlib.pyplot as plt
 import random as python_random
 import tensorflow as tf
@@ -61,30 +61,28 @@ train_x = train_x / 255
 test_x = test_x / 255
 
 #%%
-# Generate and train MLP
+# helper functions
 
-set_seed(seed=1)
-
-# build the neural network
-hidden_layer_nodes1 = 128
-hidden_layer_nodes2 = 256
-
+# build the MLP
 # Notes:
 # regularization can be used in the output layer too, although in most examples they don't include it
 # dropout should not be used for input and output layers
-def create_model(custom_weight_init=False, l2=False, l2_alpha=0.1, l1_dropout=False):
-    if l2 and l1_dropout:
-        print("Conflict in regularization l2-l1_dropout")
-        exit(-1)
+def create_model(
+    hidden_layer_nodes1=128,
+    hidden_layer_nodes2=256,
+    kernel_initializer=None,
+    kernel_regularizer=None,
+    is_dropout=False,
+    optimizer="adam",
+    metrics=["accuracy"],
+):
     hidden_layer_options = {}
     output_layer_options = {}
-    if custom_weight_init:
-        hidden_layer_options["kernel_initializer"] = RandomNormal(mean=10)
-        output_layer_options["kernel_initializer"] = RandomNormal(mean=10)
-    if l2:
-        hidden_layer_options["kernel_regularizer"] = l2(l2_alpha)
-    if l1_dropout:
-        hidden_layer_options["kernel_regularizer"] = l1(0.001)
+    if kernel_initializer:
+        hidden_layer_options["kernel_initializer"] = kernel_initializer
+        output_layer_options["kernel_initializer"] = kernel_initializer
+    if kernel_regularizer:
+        hidden_layer_options["kernel_regularizer"] = kernel_regularizer
 
     model = Sequential()
     # 1st hidden layer
@@ -97,117 +95,258 @@ def create_model(custom_weight_init=False, l2=False, l2_alpha=0.1, l1_dropout=Fa
         )
     )
 
-    if l1_dropout:
+    if is_dropout:
         # source: https://machinelearningmastery.com/how-to-reduce-overfitting-with-dropout-regularization-in-keras/
         model.add(Dropout(0.3))
 
     # 2nd hidden layer
     model.add(Dense(hidden_layer_nodes2, activation="relu", **hidden_layer_options))
 
-    if l1_dropout:
+    if is_dropout:
         model.add(Dropout(0.3))
 
     # output
     model.add(Dense(num_classes, activation="softmax", **output_layer_options))
+    # model.add(Dense(num_classes, activation="softmax", **hidden_layer_options))
 
+    model.compile(
+        optimizer=optimizer,
+        loss="sparse_categorical_crossentropy",
+        metrics=metrics,
+    )
     return model
 
 
-model = create_model(custom_weight_init=True)
-# print(model.summary())
+def plot_weights(weight):
+    plt.figure(constrained_layout=True)
+    plt.subplot(131)
+    sns.violinplot(y=weight[0], color="b")
+    plt.xlabel("Hidden Layer 1")
+    plt.subplot(132)
+    sns.violinplot(y=weight[1], color="y")
+    plt.xlabel("Hidden Layer 2")
+    plt.subplot(133)
+    sns.violinplot(y=weight[2], color="r")
+    plt.xlabel("Output")
 
 
-class Optimizer(Enum):
-    RMSPROP = 1
-    SGD = 2
+def filter_weights(model):
+    weights = [
+        model.get_weights()[0].flatten().reshape(-1, 1),  # hidden layer 1
+        model.get_weights()[2].flatten().reshape(-1, 1),  # hidden layer 2
+        model.get_weights()[4].flatten().reshape(-1, 1),  # output
+    ]
+    return weights
 
 
-def fitWrapper(batch_size, epochs, optimizer, rho):
-    if optimizer == Optimizer.RMSPROP:
-        model.compile(
-            optimizer=RMSprop(learning_rate=0.001, rho=rho),
-            loss="sparse_categorical_crossentropy",
-            metrics=["accuracy"],
-        )
-    elif optimizer == Optimizer.SGD:
-        model.compile(
-            optimizer="sgd",
-            loss="sparse_categorical_crossentropy",
-            metrics=["accuracy"],
-        )
-    else:
-        print("Not supported optimizer")
-        exit(-1)
-
+def fitWrapper(batch_size, epochs):
     history = model.fit(
         train_x,
         train_y,
         batch_size=batch_size,
         epochs=epochs,
-        validation_data=(test_x, test_y),
         validation_split=0.2,
         shuffle=False,
     )
-    return history
+    weights = filter_weights(model)
+    return history, weights
 
-
-set_seed(1)
-
-batches = [1, 256, num_samples_training]
-batches = [num_samples_training]
-histories = []
-for batch in batches:
-    t = TicToc()
-    t.tic()
-    print("Batch size: " + str(batch))
-    history = fitWrapper(
-        batch_size=batch, epochs=5, optimizer=Optimizer.RMSPROP, rho=0.9
-    )
-    histories.append(history)
-    # model.evaluate(test_x, test_y)
-    t.toc()
 
 # plot learning curves
 def plot_history(history):
+    epochs = len(history.history["accuracy"])
+    x = np.arange(1, epochs + 1)
     plt.figure(constrained_layout=True)
     plt.subplot(211)
     # sns.lineplot(data=history.history["accuracy"])
-    plt.plot(history.history["accuracy"])
-    plt.plot(history.history["val_accuracy"], color="green")
+    plt.plot(x, history.history["accuracy"])
+    plt.plot(x, history.history["val_accuracy"], color="green")
+    plt.xticks(np.arange(1, epochs + 1))
     plt.xlabel("epochs")
     plt.ylabel("accuracy")
     plt.legend(["train", "test"], loc="upper left")
 
     plt.subplot(212)
-    plt.plot(history.history["loss"])
-    plt.plot(history.history["val_loss"], color="green")
+    plt.plot(x, history.history["loss"])
+    plt.plot(x, history.history["val_loss"], color="green")
+    plt.xticks(np.arange(1, epochs + 1))
     plt.xlabel("epochs")
     plt.ylabel("loss")
     plt.legend(["train", "test"], loc="upper right")
 
 
+#%%
+# rmsprop + different batch sizes
+set_seed(1)
+
+model = create_model(optimizer=RMSprop(learning_rate=0.001, rho=0.9))
+# model = create_model()
+# print(model.summary())
+
+# before training
+weights = filter_weights(model)
+plot_weights(weights)
+
+batches = [1, 256, num_samples_training]
+batches = [num_samples_training]
+histories = []
+weights = []
+
+for batch in batches:
+    t = TicToc()
+    t.tic()
+    print("Batch size: " + str(batch))
+    history, weight = fitWrapper(
+        batch_size=batch,
+        epochs=10,
+    )
+    histories.append(history)
+    weights.append(weight)
+    # model.evaluate(test_x, test_y)
+    t.toc()
+
+# after training
+for weight in weights:
+    plot_weights(weight)
+
 for history in histories:
     plot_history(history)
 
-# add violin plot
+#%%
+# sgd + custom weight initialization
+set_seed(1)
+
+model = create_model(optimizer="sgd", kernel_initializer=RandomNormal(mean=10))
+weights = filter_weights(model)
+plot_weights(weights)
+
+batch_size = 256
+history, weights = fitWrapper(batch_size=batch_size, epochs=5)
+
+weights = filter_weights(model)
+plot_weights(weights)
+plot_history(history)
+model.evaluate(test_x, test_y)
 
 #%%
 # l2 regularization model
 set_seed(1)
 
-model = create_model(custom_weight_init=True)
-batch_size = 256
-fitWrapper(batch_size=batch_size, epochs=5, optimizer=Optimizer.RMSPROP, rho=0.9)
-# model.evaluate(test_x, test_y)
+model = create_model(
+    optimizer=RMSprop(learning_rate=0.001, rho=0.9), kernel_regularizer=l2(0.1)
+)
+weights = filter_weights(model)
+plot_weights(weights)
+
+history, weights = fitWrapper(batch_size=256, epochs=5)
+
+weights = filter_weights(model)
+plot_weights(weights)
+plot_history(history)
+model.evaluate(test_x, test_y)
 
 #%%
 # l1-dropout regularization
 set_seed(1)
 
-model = create_model(custom_weight_init=True)
-batch_size = 256
-fitWrapper(batch_size=batch_size, epochs=5, optimizer=Optimizer.RMSPROP, rho=0.9)
-# model.evaluate(test_x, test_y)
+model = create_model(
+    optimizer=RMSprop(learning_rate=0.001, rho=0.9),
+    kernel_regularizer=l1(0.01),
+    is_dropout=True,
+)
+weights = filter_weights(model)
+plot_weights(weights)
+
+history, weights = fitWrapper(batch_size=256, epochs=5)
+
+weights = filter_weights(model)
+plot_weights(weights)
+plot_history(history)
+model.evaluate(test_x, test_y)
 
 #%%
 #  Fine-tuning
+from keras.callbacks import EarlyStopping
+
+set_seed(1)
+
+# custom metric functions
+# source: https://github.com/keras-team/autokeras/issues/867#issuecomment-664794336
+from keras import backend as K
+
+
+def recall_m(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+    recall = true_positives / (possible_positives + K.epsilon())
+    return recall
+
+
+def precision_m(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    precision = true_positives / (predicted_positives + K.epsilon())
+    return precision
+
+
+def f1_score(y_true, y_pred):
+    precision = precision_m(y_true, y_pred)
+    recall = recall_m(y_true, y_pred)
+    return 2 * ((precision * recall) / (precision + recall + K.epsilon()))
+
+
+def build_model(hp):
+    hidden_layer_nodes1 = hp.Choice("hidden_layer_nodes1", values=[64, 128])
+    hidden_layer_nodes2 = hp.Choice("hidden_layer_nodes2", values=[256, 512])
+    learning_rate = hp.Choice("learning_rate", values=[0.1, 0.01, 0.001])
+    l2_alpha = hp.Choice("l2_alpha", values=[0.1, 0.001, 0.000001])
+    return create_model(
+        hidden_layer_nodes1=hidden_layer_nodes1,
+        hidden_layer_nodes2=hidden_layer_nodes2,
+        kernel_regularizer=l2(l2_alpha),
+        kernel_initializer=HeNormal(),
+        optimizer=RMSprop(learning_rate=learning_rate),
+        metrics=["accuracy", f1_score, recall_m, precision_m],
+    )
+
+
+build_model(kt.HyperParameters())
+
+tuner = kt.Hyperband(hypermodel=build_model, objective="val_accuracy")
+tuner.search(
+    train_x,
+    train_y,
+    validation_split=0.2,
+    epochs=1000,
+    callbacks=[EarlyStopping(patience=200, monitor="val_loss")],
+)
+tuner.results_summary()
+
+#%%
+# train, test the best model
+best_model = tuner.get_best_models(num_models=1)[0]
+history = best_model.fit(train_x, train_y, epochs=10, validation_split=0.2)
+loss_val, accuracy_val, f1_score_val, recall_val, precision_val = best_model.evaluate(
+    test_x, test_y
+)
+
+print("loss:" + str(loss_val))
+print("accuracy:" + str(accuracy_val))
+print("f1 score:" + str(f1_score_val))
+print("recall:" + str(recall_val))
+print("precision:" + str(precision_val))
+
+# learning curves
+plot_history(history)
+#%%
+# confusion matrix
+from sklearn.metrics import confusion_matrix
+
+y_pred = best_model.predict(test_x)
+confusion_mat = confusion_matrix(test_y, y_pred.argmax(axis=1))
+normed_conf = (confusion_mat.T / confusion_mat.astype(float).sum(axis=1)).T
+
+fig, ax = plt.subplots(figsize=(10,10))
+sns.heatmap(normed_conf, annot=True, fmt='.2f')
+plt.ylabel('Actual')
+plt.xlabel('Predicted')
