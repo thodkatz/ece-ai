@@ -158,58 +158,46 @@ def plot_history(history):
     x = np.arange(1, epochs + 1)
     plt.figure(constrained_layout=True)
     plt.subplot(211)
-    # sns.lineplot(data=history.history["accuracy"])
     plt.plot(x, history.history["accuracy"])
     plt.plot(x, history.history["val_accuracy"], color="green")
-    plt.xticks(np.arange(1, epochs + 1))
-    plt.xlabel("epochs")
-    plt.ylabel("accuracy")
-    plt.legend(["train", "test"], loc="upper left")
+    # plt.xlabel("epochs")
+    # plt.ylabel("accuracy")
+    plt.legend(["train", "validation"], loc="upper left")
 
     plt.subplot(212)
     plt.plot(x, history.history["loss"])
     plt.plot(x, history.history["val_loss"], color="green")
-    plt.xticks(np.arange(1, epochs + 1))
     plt.xlabel("epochs")
     plt.ylabel("loss")
-    plt.legend(["train", "test"], loc="upper right")
+    plt.legend(["train", "validation"], loc="upper right")
 
 
 #%%
-# rmsprop + different batch sizes
-set_seed(1)
-
-model = create_model(optimizer=RMSprop(learning_rate=0.001, rho=0.9))
-# model = create_model()
-# print(model.summary())
-
-# before training
-weights = filter_weights(model)
-plot_weights(weights)
-
+# copy-paste thing
 batches = [1, 256, num_samples_training]
-batches = [num_samples_training]
-histories = []
-weights = []
-
 for batch in batches:
+    model = create_model()
+    model.fit(train_x, train_y, batch_size=batch, epochs=100, validation_split=0.2, shuffle=False)
+
+#%%
+# default network for different batch sizes
+batches = [1, 256, num_samples_training]
+for batch in batches:
+    set_seed(1) # get reproducible results
+    print("\n\nBatch size: " + str(batch))
+    # default optimizer adam
+    model = create_model()
+    weights = filter_weights(model)
+    plot_weights(weights)
+
     t = TicToc()
     t.tic()
-    print("Batch size: " + str(batch))
-    history, weight = fitWrapper(
-        batch_size=batch,
-        epochs=10,
-    )
-    histories.append(history)
-    weights.append(weight)
-    # model.evaluate(test_x, test_y)
+    history, weight = fitWrapper(batch_size=batch, epochs=100)
     t.toc()
 
-# after training
-for weight in weights:
+    result = model.evaluate(test_x, test_y)
+    print("Accuracy: " + str(result))
     plot_weights(weight)
-
-for history in histories:
     plot_history(history)
 
 #%%
@@ -220,8 +208,7 @@ model = create_model(optimizer="sgd", kernel_initializer=RandomNormal(mean=10))
 weights = filter_weights(model)
 plot_weights(weights)
 
-batch_size = 256
-history, weights = fitWrapper(batch_size=batch_size, epochs=5)
+history, weights = fitWrapper(batch_size=256, epochs=100)
 
 weights = filter_weights(model)
 plot_weights(weights)
@@ -238,7 +225,7 @@ model = create_model(
 weights = filter_weights(model)
 plot_weights(weights)
 
-history, weights = fitWrapper(batch_size=256, epochs=5)
+history, weights = fitWrapper(batch_size=256, epochs=100)
 
 weights = filter_weights(model)
 plot_weights(weights)
@@ -257,7 +244,7 @@ model = create_model(
 weights = filter_weights(model)
 plot_weights(weights)
 
-history, weights = fitWrapper(batch_size=256, epochs=5)
+history, weights = fitWrapper(batch_size=256, epochs=100)
 
 weights = filter_weights(model)
 plot_weights(weights)
@@ -346,7 +333,7 @@ y_pred = best_model.predict(test_x)
 confusion_mat = confusion_matrix(test_y, y_pred.argmax(axis=1))
 normed_conf = (confusion_mat.T / confusion_mat.astype(float).sum(axis=1)).T
 
-fig, ax = plt.subplots(figsize=(10,10))
-sns.heatmap(normed_conf, annot=True, fmt='.2f')
-plt.ylabel('Actual')
-plt.xlabel('Predicted')
+fig, ax = plt.subplots(figsize=(10, 10))
+sns.heatmap(normed_conf, annot=True, fmt=".2f")
+plt.ylabel("Actual")
+plt.xlabel("Predicted")
