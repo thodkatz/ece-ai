@@ -60,8 +60,13 @@ test_x = test_x.astype("float32")
 train_x = train_x / 255
 test_x = test_x / 255
 
+# manual one-hot encoding instead of using 'sparse_categorical_entropy' (now 'categorical_crossentropy              ')
+# reason: train_y = keras.utils.to_categorical(train_y, num_classes)
+train_y_1hot = keras.utils.to_categorical(train_y, num_classes)
+test_y_1hot = keras.utils.to_categorical(test_y, num_classes)
+
 #%%
-# helper functions
+# Helper functions
 
 # build the MLP
 # Notes:
@@ -111,7 +116,7 @@ def create_model(
 
     model.compile(
         optimizer=optimizer,
-        loss="sparse_categorical_crossentropy",
+        loss="categorical_crossentropy",
         metrics=metrics,
     )
     return model
@@ -142,7 +147,7 @@ def filter_weights(model):
 def fitWrapper(batch_size, epochs):
     history = model.fit(
         train_x,
-        train_y,
+        train_y_1hot,
         batch_size=batch_size,
         epochs=epochs,
         validation_split=0.2,
@@ -183,7 +188,7 @@ for batch in batches:
 # default network for different batch sizes
 batches = [1, 256, num_samples_training]
 for batch in batches:
-    set_seed(1) # get reproducible results
+    set_seed(1)  # get reproducible results
     print("\n\nBatch size: " + str(batch))
     # default optimizer adam
     model = create_model()
@@ -195,7 +200,7 @@ for batch in batches:
     history, weight = fitWrapper(batch_size=batch, epochs=100)
     t.toc()
 
-    result = model.evaluate(test_x, test_y)
+    result = model.evaluate(test_x, test_y_1hot)
     print("Accuracy: " + str(result))
     plot_weights(weight)
     plot_history(history)
@@ -213,7 +218,7 @@ history, weights = fitWrapper(batch_size=256, epochs=100)
 weights = filter_weights(model)
 plot_weights(weights)
 plot_history(history)
-model.evaluate(test_x, test_y)
+model.evaluate(test_x, test_y_1hot)
 
 #%%
 # l2 regularization model
@@ -230,7 +235,7 @@ history, weights = fitWrapper(batch_size=256, epochs=100)
 weights = filter_weights(model)
 plot_weights(weights)
 plot_history(history)
-model.evaluate(test_x, test_y)
+model.evaluate(test_x, test_y_1hot)
 
 #%%
 # l1-dropout regularization
@@ -249,7 +254,7 @@ history, weights = fitWrapper(batch_size=256, epochs=100)
 weights = filter_weights(model)
 plot_weights(weights)
 plot_history(history)
-model.evaluate(test_x, test_y)
+model.evaluate(test_x, test_y_1hot)
 
 #%%
 #  Fine-tuning
@@ -302,7 +307,7 @@ build_model(kt.HyperParameters())
 tuner = kt.Hyperband(hypermodel=build_model, objective="val_accuracy")
 tuner.search(
     train_x,
-    train_y,
+    train_y_1hot,
     validation_split=0.2,
     epochs=1000,
     callbacks=[EarlyStopping(patience=200, monitor="val_loss")],
@@ -312,9 +317,9 @@ tuner.results_summary()
 #%%
 # train, test the best model
 best_model = tuner.get_best_models(num_models=1)[0]
-history = best_model.fit(train_x, train_y, epochs=10, validation_split=0.2)
+history = best_model.fit(train_x, train_y_1hot, epochs=10, validation_split=0.2)
 loss_val, accuracy_val, f1_score_val, recall_val, precision_val = best_model.evaluate(
-    test_x, test_y
+    test_x, test_y_1hot
 )
 
 print("loss:" + str(loss_val))
