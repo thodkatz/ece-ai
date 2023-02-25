@@ -1,7 +1,6 @@
 clear; clc
 
 % plant transfer function
-%GP = tf(25, [1, 10.1, 1])
 GP = zpk([], [-1 -9], 10)
 
 % setup path
@@ -14,8 +13,8 @@ addpath(rootDir)
 % controlSystemDesigner(GP)
 % With Control System Toolbox, interactively we found the configuration of
 % the PI "k*(s+c)/s" controler to satisfy our design requirements:
-% 1) Rise time < 0.6 seconds
-% 2) Overshoot < 8%
+% 1) Rise time < 1.2 seconds
+% 2) Overshoot < 10%
 
 % The configuration is saved to "dcControllerTuning.mat"
 % Uncomment the following line to launch the toolbox with the configuration:
