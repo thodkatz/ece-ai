@@ -29,3 +29,7 @@ codegen/
 
 # Octave session info
 octave-workspace
+
+*venv
+
+*ipynb_checkpoints
